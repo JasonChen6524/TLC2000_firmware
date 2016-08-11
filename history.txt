@@ -1,0 +1,113 @@
+/**
+  ******************************************************************************
+  * @file    history.txt
+  * @author  Jason Chen
+  * @version 
+  * @date    30 - April-2014
+  * @brief   records of firmware modification
+  ******************************************************************************
+  */
+2016.08.05
+    1. Added one self calibration (Test), Controlled by USB GUI.
+    2. Added and modified the button process. When button is held more 5 seconds, probe will enter one self calibraton mode
+    3. Added a few display number functions for debugging
+    4. Modifed the structure of project folder, and added one option "TheraLase2000_debug" which disabled the logon picture loadoing each time
+
+2016.07.28
+    1. Fixed the issue of re-set treatment configuration after finishing the mode while treating, which is that the button doesn't work
+	2. Fixed the issue of re-set measurement configuration after finishing the mode while mwasuring, which is that the button doesn't work
+	3. Removed all warning messages after compiling
+	4. Version Number changed to "V.1.9.34R", "R" --> release formly
+
+2016.05.18
+    1. Fixed the issue of re-set treatment time after pressing BUTTON to pause Treating mode
+	2. Version Number changed to "V.1.9.33T"
+
+2016.05.16
+    1. Fixed another bug when pressing button after re-arming probe
+	2. Version Number changed to "V.1.9.32T"
+ 
+2016.05.12
+    1. Fixed the running issue when 660 is configured as NO-ZERO and 905 as ZERO
+	2. Version Number changed to "V.1.9.31T"
+	
+2016.03.18
+    1. Changed the behaviour of Intialization process, which is that the V30 is turned off when it is initilized.
+	2. Version Number changed to "V.1.9.30T"
+	
+2016.02.18
+    1. Changed the battery sample rate from 10 seconds to 30 seconds
+	2. Version Number changed to "V.1.9.29T"
+	
+2016.02.03
+    1. Simplified the process of "Button" according to Wayne's requirement
+	2. Modification of LCD display and buzzer process in Measurement mode
+	3. Version Number changed to "V.1.9.28T"
+	
+2015.12.10
+    1. Moved the Probe offset store into the second end 2K space of whole flash space
+	   
+	   " #define FLASH_OFFSET_BASE_ADDRESS  ((uint32_t)(FLASH_STORE_BASE_ADDRESS-FLASH_PAGE_SIZE)) " in file "calibration.h"
+	   
+    2. Modified the function "Calibration_setup()" to turn off other 660 power during 905 laser testing.
+    3. Added Probe Self-Test rountine started by cmd from USB GUI, which can be controlled by Tablet through BT
+    4. Version changed as "V1.9.24T"
+
+2015.07.23
+	1. Created one new way to detect the battery package disconnected or connected. Need Jack to test it
+		a. When battery package is not connected, display " No Bat "
+		b. When probe is connected to that port which doesn't have i2C buss, display nothing.
+		c. When probe is connected to the port which has the i2C bus and battery sensor with battery packed, display 
+		   the percentage of charging volume , that is normal display.
+	2. When hi temperature alarm is activated, just display " Hi Temp ".
+	3. Moved the Hi Temp display to the position of tens display.
+		a. When temperature alarm happens, the Hi Temp will replace the Tens On/Off display.
+		b. When the alarm is cleared, the display will be restored to the normal tens display.
+    4. Removed the voltage and current display
+	5. Version displayed as "V1.9.18T"
+
+
+2015.07.03:
+   1. Added new temperature driver and process, its value is displayed on top LCD when alarm is activated
+   2. Added temperature alarm flag and its value into one structure same as the battery sensor's for blue tooth to read it.
+   3. Version Number changed into V 1.9.16T (for testing)
+
+
+2015.06.29:
+   1. Added battery sensor driver and process, its value is displayed on top LCD using Arial font 15
+   2. Added probe color identify, different color stands for one of four different probes, previous foreground_color changed this color configuration.
+      foreground color and black ground color are fixd value of LCD font.
+   3. Version Number changed into V 1.9.15T (for testing)
+   
+2015.06.16:
+   1. Changed FPGA_AD_RD_CLK definition to PC11, including its pin definition, interrupt number and ISR definition   
+     
+2015.06.15:
+   1. Changed small logo to black/white color
+   2. Removed the blue edge of display
+   3. Version Number changed into V 1.9.15   
+   
+2015.06.05:
+   1. Changed the code value of TEAL color to 0x06F5
+   2. Version Number Still V 1.9.14   
+
+2015.06.02:
+   1. Changed the color of the treatment time display on the probe from white and red to always Teal
+   2. Version changed V 1.9.14   
+   
+2015.05.04:
+   1. Modified functions "Mode_GUI_Init(uint8_t mode)" and "Mode_GUI_Fresh(uint8_t mode)", Firmware will display it as "idle" when firmware got one number 
+      which is neither treatment mode nor measurement mode
+   2. Modification that Each time power on, the foregound color, backgound color and mode value will be verified. It will be setup as default value if error
+   3. Removed some redundant and duplicate code
+   4. Removed some font file which is never used   
+   5. Version changed V 1.9.13
+   
+2015.04.30:
+   1. Added system font color verification to Avoiding the same background color and foreground color of fonts.
+   2. Modify the "#if ENABLE_iWATCHDOG" to "#ifdef ENABLE_iWATCHDOG", it is a bug.
+   3. Version changed to V 1.9.12
+    
+   
+*****END OF FILE******
+

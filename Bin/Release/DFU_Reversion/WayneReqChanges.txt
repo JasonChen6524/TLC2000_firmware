@@ -1,0 +1,23 @@
+Hi Jason,
+ 
+We need to speed up the use of the probe so we are going to eliminate some of the switch operations.
+ 
+Here are the following changes:
+ 
+1.       Start/Stop switch operation:
+¡¤         Remove the 2 second delay
+¡¤         Start the measurement or treatment mode with only 1 operation of the pushbutton switch
+¡¤         Pause action in treatment mode is still 1 button push but starting the treatment mode after pausing is just 1 push ¨C no 2 second delay.
+ 
+2.       Measurement Mode:
+¡¤         Remove 5 second time display ¨C leave the time display as all 0¡¯s
+¡¤         Remove beeping for 5 seconds
+¡¤         Remove the 5 second countdown
+¡¤         Remove the laser on red indicator(keep for the treatment mode)
+¡¤         Start the measurement as soon as the button is pressed
+¡¤         Beep as soon as the measurement is finished
+ 
+3.       Treatment Mode:
+¡¤         No change except that it starts or pauses with 1 operation of the start/stop switch.
+ 
+Can you get the modified firmware to us by Thursday so we can test it?

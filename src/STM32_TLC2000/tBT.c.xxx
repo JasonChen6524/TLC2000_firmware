@@ -1,0 +1,498 @@
+/**
+  ******************************************************************************
+  * @file    tUart.c
+  * @author  Harry Yan
+  * @version V1.0
+  * @date    18-Aug-2014
+  * @brief   
+  *            
+  */ 
+
+/* Includes ------------------------------------------------------------------*/
+#include "tBT.h"
+#include "MiscTools.h"
+#include "calibration.h"
+#include "Hid_command_process.h"
+#include "custom_hid_conf.h"
+#include "RTC.h"
+//#include "AD5504_DAC.h"
+#include "DAC7718.h"
+#include "FPGA_RAM.h"
+#include "Potentiometer.h"
+#include "MiscTools.h"
+#include "Buzzer.h"
+#include "ADS8319_ADC.h"
+ #include "Switch2.h"
+#include "TLC2000_SPI_LCD_TFT.h"
+
+/* Private typedef -----------------------------------------------------------*/
+//typedef enum { FAILED = 0, PASSED = !FAILED} TestStatus;
+
+
+
+/* Private define ------------------------------------------------------------*/
+#define TxBufferSize   0x20
+#define RxBufferSize   0xff
+
+/* Private macro -------------------------------------------------------------*/
+#define countof(a)   (sizeof(a) / sizeof(*(a)))
+
+/* Private variables ---------------------------------------------------------*/
+
+__IO BLE_CONFIG pcCmd; 
+__IO BLE_CONFIG oldPcCmd;
+
+USART_InitTypeDef USART_InitStructure;
+uint8_t TxBuffer[TxBufferSize] ;//= "ATSPLE,2,0,3\r";//"ATSUART,7,0,0,1\r";
+uint8_t RxBuffer[RxBufferSize];
+uint8_t NbrOfDataToTransfer = 0;
+uint8_t NbrOfDataToRead = RxBufferSize;
+
+uint8_t TxCounter = 0;
+uint8_t RxCounter = 0;
+
+UartParams uartComm;
+
+__IO TestStatus TransferStatus = FAILED; 
+__IO uint8_t recvFlag = 0; 
+
+/* Private function prototypes -----------------------------------------------*/
+static void Uart_RCC_Configuration(void);
+static void Uart_GPIO_Configuration(void);
+static void Uart_NVIC_Configuration(void);
+
+
+void TLC_UartInit(void)
+{
+ /* System Clocks Configuration */
+  Uart_RCC_Configuration();
+  Uart_NVIC_Configuration();
+  /* Configure the GPIO ports */
+  Uart_GPIO_Configuration();
+  
+  
+/* USART2 configuration ------------------------------------------------------*/
+  /* USART2 configured as follow:
+        - BaudRate = 115200 baud  
+        - Word Length = 8 Bits
+        - One Stop Bit
+        - No parity
+        - Hardware flow control enabled (RTS and CTS signals)
+        - Receive and transmit enabled
+  */
+  USART_InitStructure.USART_BaudRate = 115200;
+  USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+  USART_InitStructure.USART_StopBits = USART_StopBits_1;
+  USART_InitStructure.USART_Parity = USART_Parity_No ;
+  USART_InitStructure.USART_HardwareFlowControl =  USART_HardwareFlowControl_RTS_CTS;
+  USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+
+  USART_Init(USART2, &USART_InitStructure);
+  /* Enable USARTy Receive and Transmit interrupts */
+  USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+  //USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
+  /* Enable the USART2 */
+  
+  USART_Cmd(USART2, ENABLE);
+
+  uartComm.RXg = 0;
+  uartComm.RXp = 0;
+	
+  uartComm.TXg = 0;
+  uartComm.TXp = 0;
+	
+  uartComm.RXl = UART_COMM_BUFF_SIZE;
+  uartComm.TXl = UART_COMM_BUFF_SIZE;
+
+  uartComm.TXf =0;
+  uartComm.RXf =0;
+  #if 0
+  /* Receive a string (Max RxBufferSize bytes) from the Hyperterminal ended by '\r' (Enter key) */
+  do
+  { 
+    if((USART_GetFlagStatus(USART2, USART_FLAG_RXNE) != RESET)&&(RxCounter < RxBufferSize))
+    {
+       RxBuffer[RxCounter] = USART_ReceiveData(USART2);
+       USART_SendData(USART2, RxBuffer[RxCounter++]);
+    }   
+ 
+  }while((RxBuffer[RxCounter - 1] != '\r')&&(RxCounter != RxBufferSize));
+  #endif
+
+ 
+}
+
+int TLC_BT_Rx(void)
+{
+//     int cnt =0;
+	 if(RxBuffer[0]== 'T')
+	 	return 2;
+     return 0;
+}
+
+int TLC_BT_Tx(void)
+{
+	while(NbrOfDataToTransfer--)
+	 {
+	   USART_SendData(USART2, TxBuffer[TxCounter++]);
+	   while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET); 		 
+	 }
+	TxCounter = 0;
+	NbrOfDataToTransfer = TxBufferSize;
+	 
+	 return 0;
+
+ #if 0
+  int count;
+  uint8_t c;
+  
+  for(count = 0; *s != 0; count++)
+  {
+	  c = *s++;
+	  USART_SendData(USART2, c);
+  }
+  return(count);
+ #endif
+}
+
+/**
+  * @brief  Configures the different system clocks.
+  * @param  None
+  * @retval None
+  */
+static void Uart_RCC_Configuration(void)
+{    
+  /* Enable GPIOx and AFIO clocks */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
+
+  /* Enable USART2 clocks */
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+}
+
+/**
+  * @brief  Configures the different GPIO ports.
+  * @param  None
+  * @retval None
+  */
+static void Uart_GPIO_Configuration(void)
+{
+  GPIO_InitTypeDef GPIO_InitStructure;
+
+#if defined(USE_STM3210B_EVAL) || defined(USE_STM32100B_EVAL)
+  /* Enable the USART2 Pins Software Remapping */
+  //GPIO_PinRemapConfig(GPIO_Remap_USART2, ENABLE);
+#endif
+
+  /* Configure USART2 RTS and USART2 Tx as alternate function push-pull */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;// GPIO_RTSPin | GPIO_TxPin;GPIO_Pin_1 | 
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+  /* Configure USART2 CTS and USART2 Rx as input floating */
+  GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3;//GPIO_CTSPin | GPIO_RxPin;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+}
+static void Uart_NVIC_Configuration(void)
+{
+  NVIC_InitTypeDef NVIC_InitStructure;
+
+  /* Configure the NVIC Preemption Priority Bits */  
+  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
+  
+  
+  NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+
+}
+
+byte uartCommGetc(void)
+{
+	volatile byte index;
+	volatile byte c;
+	//if(uartComm.RXf)return 1;
+	if(uartComm.RXg == uartComm.RXp)
+    {
+		uartComm.RXf = 0;								// rx flag is only an indication
+        return(0xff);
+    }
+	
+	c = uartComm.RX[uartComm.RXg];
+	index = uartComm.RXg;
+	if(++index == uartComm.RXl)
+		uartComm.RXg = 0;
+	else
+		uartComm.RXg = index;
+	return(c);
+	
+}
+
+int uartCommGetb(byte *s, int len)
+{
+	volatile byte index;
+	int count;
+
+	for(count = 0; count < len; count++)
+	{
+		if(uartComm.RXg ==uartComm.RXp)
+		{
+			uartComm.RXf = 0;								// rx flag is only an indication
+			return(count);								    // disable()/enable() for exact
+		}
+		
+		*s++ = uartComm.RX[uartComm.RXg] & 0xff;
+		index = uartComm.RXg;
+		if(++index == uartComm.RXl)
+			uartComm.RXg = 0;
+		else
+			uartComm.RXg = index;
+	}
+	return(count);
+}
+
+byte uartCommPutc( byte c)
+{
+   volatile byte  index;
+   index  = uartComm.TXp;
+   if(++index == uartComm.TXl)
+   	 index = 0;
+   while( index == uartComm.TXg) 
+   	{
+   	  __ASM volatile ("nop");
+	  __ASM volatile ("nop");
+	  __ASM volatile ("nop");
+
+   	}
+   	  
+   uartComm.TX[uartComm.TXp] = c;
+   uartComm.TXp = index;
+
+   if(uartComm.TXf  == 0)
+   {
+		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
+		uartComm.TXf =1;
+        USART_ITConfig(USART2, USART_IT_TXE, ENABLE); 
+   }
+   return 0;
+}
+
+int uartCommPutb( byte *s, int len)
+{
+	int count;
+	
+	for(count = 0; count < len; count++)
+	{
+		if(uartCommPutc( *s++))
+			break;
+	}
+	return(count);
+}
+int uartCommPuts(byte *s)
+{
+	int count;
+	byte c;
+	
+	for(count = 0; *s != 0; count++)
+	{
+		c = *s++;
+		if(uartCommPutc(c))
+		  break;
+	}
+	return(count);
+}
+
+
+#define STUPID_PKT_LEN  31
+byte stupidPkt[STUPID_PKT_LEN];
+byte stupidRx[STUPID_PKT_LEN];
+
+int uartConstructPkt( byte *s, int len)
+{
+	int count;
+	static const byte hex[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+	for(count = 0; count < len*2; )
+	{
+		stupidPkt[count+1] =  hex[*s >> 4];
+		count++;
+		stupidPkt[count+1] =   hex[*s++ & 0xf];	
+		count++;
+	}
+	
+	return(count);
+}
+int getCmd()
+{     
+   volatile byte len;
+   len = uartCommGetc();
+	 if(len!=0xFF)
+	 {
+		if(len =='T')
+			{
+			 len = uartCommGetc();
+			 if(len!=0xFF)
+			 {
+				if(len =='L')
+					{
+					   len = uartCommGetc();
+					   if(len!=0xFF)
+					   	{
+					   	    pcCmd.duration = len;
+						 
+					        len = uartCommGetc();
+						    if(len!=0xFF)
+					     	{
+					   	        pcCmd.power= len;
+						        len = uartCommGetc();
+ 						        if(len!=0xFF)
+ 					   	        {
+					   	             pcCmd.on = len;
+									 //USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
+		                             //uartComm.RXg = 0;
+                                     //uartComm.RXp = 0;
+                                     //USART_ITConfig(USART2, USART_IT_RXNE, ENABLE); 
+ 									 
+						 
+					   	        }
+					   	    }
+					     }					      
+					}
+				
+
+			 }
+			}
+
+	 }
+	 return 0;
+
+}
+
+int uartCommSendPkt(void)
+{
+	int count;
+	for(count = 0; count < STUPID_PKT_LEN; count++)
+	{
+		if(uartCommPutc( stupidPkt[count]))
+			break;
+	}
+	return(count);
+}
+byte *ptr;
+
+UART_PROTO_PKT uartCommPkt;
+// 0 --0 
+// 100 4095    4095*/100 *
+void BT_Task(void)
+{
+		__IO uint16_t voltage;
+		float voltage1;
+		uint16_t timeSeconds = 0;
+		uint16_t start = 0;
+
+		if(oldPcCmd.on!=pcCmd.on)
+		{
+			 BuzzerOn();
+			 oldPcCmd.on = pcCmd.on;			
+			 if(oldPcCmd.on)
+			 {
+				 
+				 Display_Armed();  
+				 start = 1;
+				 //treatment_time = treatment_time_backup;//userProfile.user_profile.treatment_time;
+				 switch_stm_status = SWITCH_RUNNING;
+				 Delay(50);
+				 //TreatmentOn();
+				 BuzzerOff();
+				 switch_stm_status = SWITCH_STOP;   // 2014.10.28
+			 }
+			 else
+			 {
+				 BuzzerOn();
+				 start = 0;
+					treatment_time_backup = treatment_time;
+					treatment_time = 0;
+				 TreatmentOff();                                 
+				 armed_flag = 0;
+				 Delay(50);
+				 BuzzerOff();				 
+			 }
+		}
+		
+		if(start && oldPcCmd.power !=pcCmd.power)
+		{
+			 oldPcCmd.power = pcCmd.power;
+			 voltage1 = (float)oldPcCmd.power;
+			 voltage1 *=4095.0f/100.0f ;
+			 if(voltage1 > 4095.0f)
+			 voltage1 = 4095.0f;
+			 voltage = (uint16_t)voltage1;				
+			 //voltage = Receive_Buffer[2]*256 + Receive_Buffer[3];
+			 userProfile.user_profile.p905DAC0Voltage = 4095;//voltage;                 //Required by Wayne, 2014.11.21
+			 userProfile.user_profile.p905DAC1Voltage = 4095;//voltage;                 //Required by Wayne, 2014.11.21
+			 userProfile.user_profile.p905DAC2Voltage = 4095;//voltage;                 //Required by Wayne, 2014.11.21
+			 userProfile.user_profile.p905DAC3Voltage = 4095;//voltage;                 //Required by Wayne, 2014.11.21
+			 userProfile.user_profile.p905DAC4Voltage = 4095;//voltage;                 //Required by Wayne, 2014.11.21
+			 userProfile.user_profile.p905DAC5Voltage = 4095;//voltage;                 //Required by Wayne, 2014.11.21
+		 
+			 //ALL_DAC7718_OUT_VOLT(voltage);
+			 
+			 Display_Power(voltage);
+		}
+
+	  if(start && oldPcCmd.tense !=pcCmd.tense)
+		{
+			 oldPcCmd.tense = pcCmd.tense;
+			 voltage1 = (float)oldPcCmd.tense;
+			 voltage1 *=4095.0f/100.0f ;
+			 if(voltage1 > 4095.0f)
+			 voltage1 = 4095.0f;
+			 voltage = (uint16_t)voltage1;
+			 //voltage = Receive_Buffer[2]*256 + Receive_Buffer[3];
+			 userProfile.user_profile.pTensDACVoltage= 4095;//voltage;                  //Required by Wayne, 2014.11.21
+							 
+			 Display_TensPower(voltage);
+		}
+		if(start && oldPcCmd.duration!=pcCmd.duration)
+		{
+			 oldPcCmd.duration = pcCmd.duration;
+			 timeSeconds = oldPcCmd.duration * 60;
+		 			
+			 userProfile.user_profile.treatment_time = timeSeconds;
+			 treatment_time_backup = userProfile.user_profile.treatment_time;
+			 DisplayTreatmentTime(userProfile.user_profile.treatment_time);
+		}
+		
+		if(recvFlag)                                // Added by Jason Chen, 2014.11.11
+		{
+			recvFlag = 0;                             // Added by Jason Chen, 2014.11.11
+		  //if(pcCmd.power)
+			  Display_Power(userProfile.user_profile.p905DAC0Voltage&0xFFF);		      		  	
+		  //else
+			  Display_TensPower(userProfile.user_profile.pTensDACVoltage&0xFFF);
+	  }
+}
+
+
+
+#ifdef  USE_FULL_ASSERT
+
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t* file, uint32_t line)
+{ 
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+
+  /* Infinite loop */
+  while (1)
+  {
+  }
+}
+#endif
